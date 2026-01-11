@@ -178,6 +178,40 @@
     }
 
     /**
+     * Smart image positioning based on orientation
+     * - Landscape (width >= height): fill height, center horizontally, crop sides
+     * - Portrait (height > width): fill width, center vertically, crop top/bottom
+     */
+    function positionImage(imgEl, imgWidth, imgHeight) {
+        var viewportWidth = window.innerWidth;
+        var viewportHeight = window.innerHeight;
+        var imgAspect = imgWidth / imgHeight;
+        var viewportAspect = viewportWidth / viewportHeight;
+
+        var displayWidth, displayHeight, top, left;
+
+        if (imgAspect >= viewportAspect) {
+            // Image is landscape or square - fill height, crop sides
+            displayHeight = viewportHeight;
+            displayWidth = imgWidth * (viewportHeight / imgHeight);
+            top = 0;
+            left = (viewportWidth - displayWidth) / 2;
+        } else {
+            // Image is portrait - fill width, crop top/bottom
+            displayWidth = viewportWidth;
+            displayHeight = imgHeight * (viewportWidth / imgWidth);
+            top = (viewportHeight - displayHeight) / 2;
+            left = 0;
+        }
+
+        imgEl.style.width = displayWidth + 'px';
+        imgEl.style.height = displayHeight + 'px';
+        imgEl.style.left = left + 'px';
+        imgEl.style.top = top + 'px';
+        imgEl.style.display = 'block';
+    }
+
+    /**
      * Display next photo with fade transition
      */
     function showNextPhoto() {
@@ -224,18 +258,20 @@
             var currentOpacity = currentImgEl.style.opacity || '0';
             var hasCurrentImage = currentOpacity !== '' && currentOpacity !== '0';
 
+            // Position and set the new image
+            positionImage(currentImgEl, img.width, img.height);
+            currentImgEl.src = photoUrl;
+
             if (hasCurrentImage) {
                 // Fade out current image first
                 currentImgEl.style.opacity = '0';
 
-                // After fade out, change image and fade in
+                // After fade out, fade in new image
                 setTimeout(function() {
-                    currentImgEl.style.backgroundImage = 'url("' + photoUrl + '")';
                     currentImgEl.style.opacity = '1';
                 }, config.fadeDuration + 50);
             } else {
                 // No image currently displayed, show directly
-                currentImgEl.style.backgroundImage = 'url("' + photoUrl + '")';
                 setTimeout(function() {
                     currentImgEl.style.opacity = '1';
                 }, 50);

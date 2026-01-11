@@ -26,21 +26,14 @@ html, body {
     overflow: hidden;
 }
 
-/* Image Element using background-image */
+/* Image Element using img tag for smart scaling */
 #current-image {
     position: absolute;
-    top: -10px;
+    top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
 
-    /* Background image settings - cover fills height, crops excess width */
-    background-position: center center;
-    background-repeat: no-repeat;
-    -webkit-background-size: cover;
-    -moz-background-size: cover;
-    -o-background-size: cover;
-    background-size: cover;
+    /* Display and positioning set via JavaScript */
+    display: none;
 
     /* CSS3 transition - supported in iOS 5.1.1 */
     -webkit-transition: opacity 1s ease-in-out;

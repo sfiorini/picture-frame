@@ -29,9 +29,6 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Create app user
-RUN useradd -m -u 1000 appuser
-
 # Create directories
 RUN mkdir -p /photos /tmp/picture-frame-cache /app
 
@@ -40,12 +37,6 @@ WORKDIR /app
 
 # Copy application files
 COPY app ./app
-
-# Set permissions
-RUN chown -R appuser:appuser /app /photos /tmp/picture-frame-cache
-
-# Switch to non-root user
-USER appuser
 
 # Expose port
 EXPOSE 5000
