@@ -257,6 +257,41 @@
     }
 
     /**
+     * Position background image to always cover full viewport (like object-fit: cover)
+     * This is needed because object-fit is not supported on Safari iOS 5.1.1
+     */
+    function positionBackgroundImage(imgEl, imgWidth, imgHeight) {
+        var viewportWidth = window.innerWidth;
+        var viewportHeight = window.innerHeight;
+
+        var imgAspect = imgWidth / imgHeight;
+        var viewportAspect = viewportWidth / viewportHeight;
+
+        var displayWidth, displayHeight, top, left;
+
+        // Always cover the entire viewport (crop the larger dimension)
+        if (imgAspect > viewportAspect) {
+            // Image is wider - fill width, crop top/bottom
+            displayWidth = viewportWidth;
+            displayHeight = imgHeight * (viewportWidth / imgWidth);
+            top = (viewportHeight - displayHeight) / 2;
+            left = 0;
+        } else {
+            // Image is narrower or equal - fill height, crop sides
+            displayHeight = viewportHeight;
+            displayWidth = imgWidth * (viewportHeight / imgHeight);
+            top = 0;
+            left = (viewportWidth - displayWidth) / 2;
+        }
+
+        imgEl.style.width = displayWidth + 'px';
+        imgEl.style.height = displayHeight + 'px';
+        imgEl.style.left = left + 'px';
+        imgEl.style.top = top + 'px';
+        imgEl.style.display = 'block';
+    }
+
+    /**
      * Display next photo with fade transition and blur background
      */
     function showNextPhoto() {
@@ -337,7 +372,7 @@
                 // Update background - always show blur
                 if (blurImg) {
                     backgroundImgEl.src = blurImg.src;
-                    backgroundImgEl.style.display = 'block';
+                    positionBackgroundImage(backgroundImgEl, blurImg.width, blurImg.height);
                     backgroundImgEl.style.opacity = '1';
                 }
 
@@ -353,7 +388,7 @@
             // First load - always show blur background
             if (blurImg) {
                 backgroundImgEl.src = blurImg.src;
-                backgroundImgEl.style.display = 'block';
+                positionBackgroundImage(backgroundImgEl, blurImg.width, blurImg.height);
                 backgroundImgEl.style.opacity = '1';
             }
 
@@ -378,6 +413,11 @@
      */
     function handleOrientationChange() {
         setTimeout(function() {
+            // Reposition background image
+            if (backgroundImgEl && backgroundImgEl.src && backgroundImgEl.complete) {
+                positionBackgroundImage(backgroundImgEl, backgroundImgEl.naturalWidth, backgroundImgEl.naturalHeight);
+            }
+
             // Reposition foreground image
             if (currentImgEl && currentImgEl.src && currentImgEl.complete) {
                 positionImage(currentImgEl, currentImgEl.naturalWidth, currentImgEl.naturalHeight);

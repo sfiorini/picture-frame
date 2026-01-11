@@ -6,6 +6,8 @@ A web-based photo slideshow application optimized for Safari on iOS 5.1.1 (iPad 
 
 - **iOS 5.1.1 Compatible**: ES5 JavaScript and CSS3 transitions work on older Safari
 - **HEIC Support**: Automatic server-side transcoding of HEIC photos to JPEG
+- **Blurred Background**: Photos display with a blurred background layer that fills black bands from aspect ratio mismatches
+- **Smart Positioning**: Automatically adjusts image positioning based on device and photo orientation (landscape/portrait)
 - **Multiple Photo Directories**: Configure one or more local folders
 - **Configurable Display**: Adjust delay, fade duration, and display order (random/sequential)
 - **Simple Authentication**: API key authentication via query parameter or header
@@ -139,10 +141,13 @@ Returns:
 ```
 
 ### `GET /api/photo/<photo_id>`
-Serve a single photo (handles HEIC transcoding)
+Serve a single photo (handles HEIC transcoding and blur generation)
 
 Query parameters:
 - `api_key`: Your API key
+- `blur`: Set to `true` to get a blurred version for background display
+
+The blurred version is downscaled (max 800px) and heavily blurred for use as a background layer.
 
 ### `GET /health`
 Health check endpoint for container monitoring
@@ -161,6 +166,26 @@ Once authenticated via the URL parameter, the key is saved to localStorage for s
 - JPEG (`.jpg`, `.jpeg`)
 - PNG (`.png`)
 - HEIC (`.heic`, `.heif`) - automatically transcoded to JPEG
+
+## Display Behavior
+
+### Blurred Background Layer
+
+Every photo displays with a blurred version of itself as a background layer. This creates a more polished visual experience:
+
+- **Full-screen blur**: The background layer always displays as a full-screen cover (`object-fit: cover`)
+- **Sharp foreground**: The actual photo is positioned on top using smart positioning logic
+- **Natural fill**: Where the photo doesn't fill the screen (aspect ratio differences), the blurred background shows through
+
+### Smart Image Positioning
+
+The application automatically positions photos based on device and photo orientation:
+
+| Device | Photo | Behavior |
+|--------|-------|----------|
+| Landscape | Portrait | Fill height, crop sides |
+| Portrait | Landscape | Fill width, crop top/bottom |
+| Matching | Same orientation | Fill based on aspect ratio comparison |
 
 ## Development
 
