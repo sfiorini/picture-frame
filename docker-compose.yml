@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  picture-frame:
+    build: .
+    container_name: picture-frame
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount photo directories (read-only for security)
+      # Update these paths to match your photo locations
+      - ./photos:/photos:ro
+      # Add more photo directories as needed
+      # - /path/to/more/photos:/additional-photos:ro
+      # Optional: Persist cache across restarts
+      - picture-frame-cache:/tmp/picture-frame-cache
+    environment:
+      # Flask settings
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DEBUG=${DEBUG:-false}
+
+      # Authentication - REQUIRED: Change this in production!
+      - API_KEY=${API_KEY:-your-api-key-here}
+
+      # Photo settings
+      # Multiple directories can be separated by commas
+      - PHOTO_DIRS=${PHOTO_DIRS:-/photos}
+      - PHOTO_DELAY_SECONDS=${PHOTO_DELAY_SECONDS:-10}
+      - DISPLAY_ORDER=${DISPLAY_ORDER:-random}
+
+      # Fade/transitions
+      - FADE_DURATION_MS=${FADE_DURATION_MS:-1000}
+
+      # Cache settings
+      - CACHE_DIR=/tmp/picture-frame-cache
+      - ENABLE_CACHE=${ENABLE_CACHE:-true}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  picture-frame-cache:
+    driver: local

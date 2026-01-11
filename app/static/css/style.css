@@ -1,0 +1,81 @@
+/* Picture Frame Styles
+ * Compatible with Safari on iOS 5.1.1
+ * Uses CSS3 transitions for fade effects
+ */
+
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #000;
+    position: fixed;
+}
+
+/* Slideshow Container */
+#slideshow-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Image Element using background-image */
+#current-image {
+    position: absolute;
+    top: -10px;
+    left: 0;
+    width: 100%;
+    height: 100%;
+
+    /* Background image settings - cover fills height, crops excess width */
+    background-position: center center;
+    background-repeat: no-repeat;
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
+
+    /* CSS3 transition - supported in iOS 5.1.1 */
+    -webkit-transition: opacity 1s ease-in-out;
+    -moz-transition: opacity 1s ease-in-out;
+    -o-transition: opacity 1s ease-in-out;
+    transition: opacity 1s ease-in-out;
+}
+
+/* Loading and Error Messages */
+.loading, .error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    /* Use margin for centering instead of transform (iOS 5.1.1 compatibility) */
+    width: 200px;
+    margin-left: -100px;
+    margin-top: -20px;
+    color: #fff;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 18px;
+    text-align: center;
+    z-index: 100;
+}
+
+.error {
+    color: #f55;
+    background-color: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    border-radius: 5px;
+    width: 300px;
+    margin-left: -150px;
+    margin-top: -40px;
+}
+
+/* Hide loading after initial load */
+.loading.hidden {
+    display: none;
+}

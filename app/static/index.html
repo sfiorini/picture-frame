@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Picture Frame</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Hide scrollbars */
+        html, body {
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div id="slideshow-container">
+        <div id="current-image"></div>
+    </div>
+
+    <div id="loading" class="loading">Loading...</div>
+    <div id="error" class="error" style="display: none;"></div>
+
+    <script>
+        // Hide Safari address bar on iOS 5.1.1
+        (function() {
+            function hideAddressBar() {
+                // Scroll to position 1,0 forces address bar to hide
+                window.scrollTo(0, 1);
+            }
+
+            // Make page taller than viewport to enable scrolling
+            function setupPageHeight() {
+                var height = window.innerHeight;
+                if (height > 0) {
+                    document.body.style.height = (height + 60) + 'px';
+                }
+            }
+
+            // Run on load
+            setupPageHeight();
+            setTimeout(hideAddressBar, 100);
+
+            // Hide on orientation change
+            window.addEventListener('orientationchange', function() {
+                setupPageHeight();
+                setTimeout(hideAddressBar, 300);
+            });
+        })();
+    </script>
+    <script src="/static/js/slideshow.js"></script>
+</body>
+</html>
