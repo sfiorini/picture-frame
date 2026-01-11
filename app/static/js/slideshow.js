@@ -20,7 +20,8 @@
         currentIndex: 0,
         isLoading: false,
         isFirstLoad: true,
-        isTransitioning: false  // Prevent concurrent transitions
+        isTransitioning: false,  // Prevent concurrent transitions
+        currentPhoto: null  // Track current photo for orientation changes
     };
 
     // DOM elements
@@ -178,30 +179,65 @@
     }
 
     /**
-     * Smart image positioning based on orientation
-     * - Landscape (width >= height): fill height, center horizontally, crop sides
-     * - Portrait (height > width): fill width, center vertically, crop top/bottom
+     * Detect orientation of viewport or image
+     * @param {number} width - Width of the element
+     * @param {number} height - Height of the element
+     * @returns {string} 'landscape' for width >= height, 'portrait' otherwise
+     */
+    function getOrientation(width, height) {
+        return width >= height ? 'landscape' : 'portrait';
+    }
+
+    /**
+     * Smart image positioning based on device and image orientation
+     *
+     * Logic:
+     * - Landscape device + Portrait photo: Fill height, crop sides
+     * - Portrait device + Landscape photo: Fill width, crop top/bottom
+     * - Matching orientations: Fill based on aspect ratio comparison
      */
     function positionImage(imgEl, imgWidth, imgHeight) {
         var viewportWidth = window.innerWidth;
         var viewportHeight = window.innerHeight;
-        var imgAspect = imgWidth / imgHeight;
-        var viewportAspect = viewportWidth / viewportHeight;
+
+        var viewportOrientation = getOrientation(viewportWidth, viewportHeight);
+        var imgOrientation = getOrientation(imgWidth, imgHeight);
 
         var displayWidth, displayHeight, top, left;
 
-        if (imgAspect >= viewportAspect) {
-            // Image is landscape or square - fill height, crop sides
-            displayHeight = viewportHeight;
-            displayWidth = imgWidth * (viewportHeight / imgHeight);
-            top = 0;
-            left = (viewportWidth - displayWidth) / 2;
+        // Handle mismatched orientations (cross-orientation)
+        if (viewportOrientation !== imgOrientation) {
+            if (viewportOrientation === 'landscape' && imgOrientation === 'portrait') {
+                // Landscape device + Portrait photo: Fill height, crop sides
+                displayHeight = viewportHeight;
+                displayWidth = imgWidth * (viewportHeight / imgHeight);
+                top = 0;
+                left = (viewportWidth - displayWidth) / 2;
+            } else {
+                // Portrait device + Landscape photo: Fill width, crop top/bottom
+                displayWidth = viewportWidth;
+                displayHeight = imgHeight * (viewportWidth / imgWidth);
+                top = (viewportHeight - displayHeight) / 2;
+                left = 0;
+            }
         } else {
-            // Image is portrait - fill width, crop top/bottom
-            displayWidth = viewportWidth;
-            displayHeight = imgHeight * (viewportWidth / imgWidth);
-            top = (viewportHeight - displayHeight) / 2;
-            left = 0;
+            // Matching orientations - use aspect ratio comparison
+            var imgAspect = imgWidth / imgHeight;
+            var viewportAspect = viewportWidth / viewportHeight;
+
+            if (imgAspect >= viewportAspect) {
+                // Image wider - fill height, crop sides
+                displayHeight = viewportHeight;
+                displayWidth = imgWidth * (viewportHeight / imgHeight);
+                top = 0;
+                left = (viewportWidth - displayWidth) / 2;
+            } else {
+                // Image narrower - fill width, crop top/bottom
+                displayWidth = viewportWidth;
+                displayHeight = imgHeight * (viewportWidth / imgWidth);
+                top = (viewportHeight - displayHeight) / 2;
+                left = 0;
+            }
         }
 
         imgEl.style.width = displayWidth + 'px';
@@ -213,9 +249,9 @@
 
     /**
      * Display next photo with fade transition
+     * Fixed sequence: Fade out → Change source → Fade in
      */
     function showNextPhoto() {
-        // Prevent concurrent transitions
         if (state.isTransitioning) {
             return;
         }
@@ -227,26 +263,22 @@
 
         state.isTransitioning = true;
 
-        // Get next photo (with wraparound)
         state.currentIndex = (state.currentIndex + 1) % state.photos.length;
         var photo = state.photos[state.currentIndex];
+        state.currentPhoto = photo;  // Store for orientation changes
         var photoUrl = buildPhotoUrl(photo);
 
-        // Only show loading on first load, not on transitions
         if (state.isFirstLoad) {
             loadingEl.style.display = 'block';
         }
         hideError();
 
-        // Preload the next image
         preloadImage(photoUrl, function(err, img) {
-            // Hide loading after preload completes
             loadingEl.style.display = 'none';
             state.isFirstLoad = false;
 
             if (err) {
                 showError('Failed to load photo: ' + photo.name);
-                // Skip to next photo after delay
                 setTimeout(function() {
                     state.isTransitioning = false;
                     showNextPhoto();
@@ -254,35 +286,51 @@
                 return;
             }
 
-            // Check if current image is displayed
             var currentOpacity = currentImgEl.style.opacity || '0';
             var hasCurrentImage = currentOpacity !== '' && currentOpacity !== '0';
 
-            // Position and set the new image
-            positionImage(currentImgEl, img.width, img.height);
-            currentImgEl.src = photoUrl;
-
             if (hasCurrentImage) {
-                // Fade out current image first
+                // CORRECTED: Fade out FIRST
                 currentImgEl.style.opacity = '0';
 
-                // After fade out, fade in new image
+                // Wait for fade out, then change image
                 setTimeout(function() {
-                    currentImgEl.style.opacity = '1';
+                    positionImage(currentImgEl, img.width, img.height);
+                    currentImgEl.src = photoUrl;
+
+                    // Small delay, then fade in
+                    setTimeout(function() {
+                        currentImgEl.style.opacity = '1';
+                    }, 50);
                 }, config.fadeDuration + 50);
             } else {
-                // No image currently displayed, show directly
+                // First load: set image, then fade in
+                positionImage(currentImgEl, img.width, img.height);
+                currentImgEl.src = photoUrl;
+
                 setTimeout(function() {
                     currentImgEl.style.opacity = '1';
                 }, 50);
             }
 
-            // Schedule next photo (wait for current transition + display delay)
+            // Schedule next photo
             setTimeout(function() {
                 state.isTransitioning = false;
                 showNextPhoto();
             }, config.delay + config.fadeDuration);
         });
+    }
+
+    /**
+     * Handle device orientation changes
+     * Re-positions the current image when device rotates
+     */
+    function handleOrientationChange() {
+        setTimeout(function() {
+            if (currentImgEl && currentImgEl.src && currentImgEl.complete) {
+                positionImage(currentImgEl, currentImgEl.naturalWidth, currentImgEl.naturalHeight);
+            }
+        }, 100);
     }
 
     /**
@@ -307,6 +355,12 @@
             showError('Please provide API key via ?api_key= parameter');
             loadingEl.style.display = 'none';
             return;
+        }
+
+        // Add orientation change listeners (iOS 5.1.1 compatible)
+        if (window.addEventListener) {
+            window.addEventListener('orientationchange', handleOrientationChange);
+            window.addEventListener('resize', handleOrientationChange);
         }
 
         // Load config and photos, then start slideshow
