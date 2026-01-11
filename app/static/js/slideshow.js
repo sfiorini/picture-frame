@@ -25,6 +25,7 @@
     };
 
     // DOM elements
+    var backgroundImgEl = null;
     var currentImgEl = null;
     var loadingEl = null;
     var errorEl = null;
@@ -69,8 +70,12 @@
             config.fadeDuration = data.fadeDuration || 1000;
             config.displayOrder = data.displayOrder || 'random';
 
-            // Update CSS transition duration
+            // Update CSS transition duration for both images
             var transitionStyle = 'opacity ' + (config.fadeDuration / 1000) + 's ease-in-out';
+            backgroundImgEl.style.webkitTransition = transitionStyle;
+            backgroundImgEl.style.mozTransition = transitionStyle;
+            backgroundImgEl.style.oTransition = transitionStyle;
+            backgroundImgEl.style.transition = transitionStyle;
             currentImgEl.style.webkitTransition = transitionStyle;
             currentImgEl.style.mozTransition = transitionStyle;
             currentImgEl.style.oTransition = transitionStyle;
@@ -172,10 +177,14 @@
     }
 
     /**
-     * Build photo URL with API key
+     * Build photo URL with API key and blur option
      */
-    function buildPhotoUrl(photo) {
-        return photo.url + '?api_key=' + encodeURIComponent(config.apiKey);
+    function buildPhotoUrl(photo, blur) {
+        var url = photo.url + '?api_key=' + encodeURIComponent(config.apiKey);
+        if (blur) {
+            url += '&blur=true';
+        }
+        return url;
     }
 
     /**
@@ -186,6 +195,28 @@
      */
     function getOrientation(width, height) {
         return width >= height ? 'landscape' : 'portrait';
+    }
+
+    /**
+     * Determine if image needs blur background
+     * Returns true if aspect ratio mismatch would cause black bars
+     */
+    function needsBlurBackground(imgWidth, imgHeight) {
+        var viewportWidth = window.innerWidth;
+        var viewportHeight = window.innerHeight;
+
+        var viewportOrientation = getOrientation(viewportWidth, viewportHeight);
+        var imgOrientation = getOrientation(imgWidth, imgHeight);
+
+        // Cross-orientation always needs blur
+        if (viewportOrientation !== imgOrientation) {
+            return true;
+        }
+
+        // Check aspect ratio difference (>10%)
+        var imgAspect = imgWidth / imgHeight;
+        var viewportAspect = viewportWidth / viewportHeight;
+        return Math.abs(imgAspect - viewportAspect) > 0.1;
     }
 
     /**
@@ -248,8 +279,7 @@
     }
 
     /**
-     * Display next photo with fade transition
-     * Fixed sequence: Fade out → Change source → Fade in
+     * Display next photo with fade transition and blur background
      */
     function showNextPhoto() {
         if (state.isTransitioning) {
@@ -265,18 +295,35 @@
 
         state.currentIndex = (state.currentIndex + 1) % state.photos.length;
         var photo = state.photos[state.currentIndex];
-        state.currentPhoto = photo;  // Store for orientation changes
-        var photoUrl = buildPhotoUrl(photo);
+        state.currentPhoto = photo;
+
+        var photoUrl = buildPhotoUrl(photo, false);
+        var blurUrl = buildPhotoUrl(photo, true);
 
         if (state.isFirstLoad) {
             loadingEl.style.display = 'block';
         }
         hideError();
 
-        preloadImage(photoUrl, function(err, img) {
-            loadingEl.style.display = 'none';
-            state.isFirstLoad = false;
+        // Load both images in parallel
+        var imagesLoaded = 0;
+        var sharpImg = null;
+        var blurImg = null;
 
+        function checkLoadComplete() {
+            imagesLoaded++;
+            if (imagesLoaded === 2) {
+                loadingEl.style.display = 'none';
+                state.isFirstLoad = false;
+
+                if (sharpImg && blurImg) {
+                    displayPhotoWithBlur(sharpImg, blurImg);
+                }
+            }
+        }
+
+        // Load sharp image
+        preloadImage(photoUrl, function(err, img) {
             if (err) {
                 showError('Failed to load photo: ' + photo.name);
                 setTimeout(function() {
@@ -285,40 +332,69 @@
                 }, 3000);
                 return;
             }
+            sharpImg = img;
+            checkLoadComplete();
+        });
 
-            var currentOpacity = currentImgEl.style.opacity || '0';
-            var hasCurrentImage = currentOpacity !== '' && currentOpacity !== '0';
+        // Load blur image (non-critical - continue without it if it fails)
+        preloadImage(blurUrl, function(err, img) {
+            blurImg = err ? null : img;
+            checkLoadComplete();
+        });
+    }
 
-            if (hasCurrentImage) {
-                // CORRECTED: Fade out FIRST
-                currentImgEl.style.opacity = '0';
+    /**
+     * Display photo with blur background
+     */
+    function displayPhotoWithBlur(sharpImg, blurImg) {
+        var needsBlur = needsBlurBackground(sharpImg.width, sharpImg.height);
 
-                // Wait for fade out, then change image
-                setTimeout(function() {
-                    positionImage(currentImgEl, img.width, img.height);
-                    currentImgEl.src = photoUrl;
+        var currentOpacity = currentImgEl.style.opacity || '0';
+        var hasCurrentImage = currentOpacity !== '' && currentOpacity !== '0';
 
-                    // Small delay, then fade in
-                    setTimeout(function() {
-                        currentImgEl.style.opacity = '1';
-                    }, 50);
-                }, config.fadeDuration + 50);
-            } else {
-                // First load: set image, then fade in
-                positionImage(currentImgEl, img.width, img.height);
-                currentImgEl.src = photoUrl;
+        if (hasCurrentImage) {
+            // Fade out both layers
+            currentImgEl.style.opacity = '0';
+            backgroundImgEl.style.opacity = '0';
+
+            setTimeout(function() {
+                // Update background
+                if (needsBlur && blurImg) {
+                    backgroundImgEl.src = blurImg.src;
+                    backgroundImgEl.style.opacity = '1';
+                } else {
+                    backgroundImgEl.style.display = 'none';
+                }
+
+                // Update foreground
+                positionImage(currentImgEl, sharpImg.width, sharpImg.height);
+                currentImgEl.src = sharpImg.src;
 
                 setTimeout(function() {
                     currentImgEl.style.opacity = '1';
                 }, 50);
+            }, config.fadeDuration + 50);
+        } else {
+            // First load
+            if (needsBlur && blurImg) {
+                backgroundImgEl.src = blurImg.src;
+                backgroundImgEl.style.display = 'block';
+                backgroundImgEl.style.opacity = '1';
             }
 
-            // Schedule next photo
+            positionImage(currentImgEl, sharpImg.width, sharpImg.height);
+            currentImgEl.src = sharpImg.src;
+
             setTimeout(function() {
-                state.isTransitioning = false;
-                showNextPhoto();
-            }, config.delay + config.fadeDuration);
-        });
+                currentImgEl.style.opacity = '1';
+            }, 50);
+        }
+
+        // Schedule next photo
+        setTimeout(function() {
+            state.isTransitioning = false;
+            showNextPhoto();
+        }, config.delay + config.fadeDuration);
     }
 
     /**
@@ -327,8 +403,20 @@
      */
     function handleOrientationChange() {
         setTimeout(function() {
+            // Reposition foreground image
             if (currentImgEl && currentImgEl.src && currentImgEl.complete) {
                 positionImage(currentImgEl, currentImgEl.naturalWidth, currentImgEl.naturalHeight);
+            }
+
+            // Check if background blur needs to be updated
+            if (backgroundImgEl && backgroundImgEl.style.display !== 'none' && state.currentPhoto) {
+                // Re-evaluate if blur is needed for new orientation
+                var needsBlur = needsBlurBackground(currentImgEl.naturalWidth, currentImgEl.naturalHeight);
+                if (needsBlur) {
+                    backgroundImgEl.style.display = 'block';
+                } else {
+                    backgroundImgEl.style.display = 'none';
+                }
             }
         }, 100);
     }
@@ -338,12 +426,13 @@
      */
     function init() {
         // Get DOM elements
+        backgroundImgEl = document.getElementById('background-image');
         currentImgEl = document.getElementById('current-image');
         loadingEl = document.getElementById('loading');
         errorEl = document.getElementById('error');
 
         // Verify elements exist
-        if (!currentImgEl || !loadingEl || !errorEl) {
+        if (!backgroundImgEl || !currentImgEl || !loadingEl || !errorEl) {
             alert('Error: Required DOM elements not found');
             return;
         }

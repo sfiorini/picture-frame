@@ -100,31 +100,40 @@ def get_photo(photo_id):
     """
     Serve a single photo file.
 
-    Handles HEIC transcoding on-demand - HEIC files are converted to JPEG
-    before being sent to the client for iOS 5.1.1 compatibility.
+    Handles HEIC transcoding on-demand and blur generation.
 
     Args:
         photo_id: Unique photo identifier (hash suffix)
+
+    Query Parameters:
+        blur: Set to 'true' to get blurred version for background
 
     Returns:
         Image file with appropriate MIME type
 
     Raises:
-        404: If photo not found or transcoding failed
+        404: If photo not found or processing failed
     """
+    from flask import request
+
     image_service = get_image_service()
     photo = image_service.get_photo_by_id(photo_id)
 
     if not photo:
         return jsonify({'error': 'Photo not found'}), 404
 
-    display_path = image_service.get_display_path(photo)
+    # Check if blur requested
+    blur = request.args.get('blur', 'false').lower() == 'true'
+
+    display_path = image_service.get_display_path(photo, blur=blur)
 
     if display_path is None:
         return jsonify({'error': 'Failed to process photo'}), 500
 
-    # Determine MIME type
-    if photo['is_heic']:
+    # Determine MIME type (blur always returns JPEG)
+    if blur:
+        mimetype = 'image/jpeg'
+    elif photo['is_heic']:
         mimetype = 'image/jpeg'
     else:
         # Get extension from original path
@@ -136,10 +145,13 @@ def get_photo(photo_id):
         else:
             mimetype = 'image/jpeg'
 
+    # Cache blur longer (24 hours vs 1 hour for normal)
+    max_age = 86400 if blur else 3600
+
     return send_file(
         display_path,
         mimetype=mimetype,
-        max_age=3600  # Cache for 1 hour
+        max_age=max_age
     )
 
 

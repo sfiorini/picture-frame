@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 
 from flask import current_app, send_file
-from PIL import Image
+from PIL import Image, ImageFilter
 
 try:
     import pillow_heif
@@ -110,6 +110,56 @@ class ImageService:
             current_app.logger.error(f'Failed to transcode {heic_path}: {e}')
             return None
 
+    def _generate_blurred_image(self, image_path: Path) -> Optional[Path]:
+        """
+        Generate a blurred version of an image for background display.
+
+        Creates a downscaled (max 800px dimension) and heavily blurred version
+        of the image optimized for use as a background layer.
+
+        Args:
+            image_path: Path to the original image
+
+        Returns:
+            Path to cached blurred image, or None if generation failed
+        """
+        # Use separate blur cache directory
+        blur_cache_path = self.cache_dir / 'blur' / self._get_cache_path(image_path).name
+
+        # Check cache first
+        if self.enable_cache and blur_cache_path.exists():
+            if blur_cache_path.stat().st_mtime > image_path.stat().st_mtime:
+                return blur_cache_path
+
+        # Ensure blur cache subdirectory exists
+        try:
+            blur_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            current_app.logger.warning(f'Failed to create blur cache directory: {e}')
+            return None
+
+        try:
+            with Image.open(image_path) as img:
+                # Convert to RGB if needed
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+
+                # Downscale for performance (max dimension 800px)
+                img.thumbnail((800, 800), Image.LANCZOS)
+
+                # Apply heavy blur
+                img = img.filter(ImageFilter.GaussianBlur(radius=30))
+
+                # Save as JPEG with lower quality (background doesn't need high quality)
+                img.save(blur_cache_path, 'JPEG', quality=70, optimize=True)
+
+                current_app.logger.debug(f'Generated blurred image for {image_path}')
+                return blur_cache_path
+
+        except Exception as e:
+            current_app.logger.error(f'Failed to generate blur for {image_path}: {e}')
+            return None
+
     def scan_photos(self, order: str = 'random') -> List[dict]:
         """
         Scan photo directories and return list of available photos.
@@ -190,21 +240,35 @@ class ImageService:
                 return photo
         return None
 
-    def get_display_path(self, photo: dict) -> Optional[str]:
+    def get_display_path(self, photo: dict, blur: bool = False) -> Optional[str]:
         """
         Get the path to use for displaying a photo.
 
         For HEIC files, returns the path to the transcoded JPEG.
+        For blur requests, returns the path to the blurred version.
         For other formats, returns the original path.
 
         Args:
             photo: Photo dictionary from scan_photos()
+            blur: Whether to get the blurred version
 
         Returns:
-            Path to use for display, or None if transcoding failed
+            Path to use for display, or None if processing failed
         """
         photo_path = Path(photo['path'])
 
+        # Handle blur request
+        if blur:
+            # For HEIC, we blur the transcoded version
+            if photo['is_heic']:
+                transcoded = self._transcode_heic(photo_path)
+                if transcoded:
+                    return self._generate_blurred_image(transcoded)
+            else:
+                return self._generate_blurred_image(photo_path)
+            return None
+
+        # Normal display path
         if photo['is_heic']:
             cached = self._transcode_heic(photo_path)
             if cached:

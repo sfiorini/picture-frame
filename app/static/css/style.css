@@ -26,19 +26,30 @@ html, body {
     overflow: hidden;
 }
 
-/* Image Element using img tag for smart scaling */
+/* Background Image - blurred version, z-index 1 */
+#background-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+    display: none;
+    opacity: 0;
+    -webkit-transition: opacity 1s ease-in-out;
+    transition: opacity 1s ease-in-out;
+}
+
+/* Foreground Image - sharp version, z-index 2 */
 #current-image {
     position: absolute;
     top: 0;
     left: 0;
-
-    /* Display and positioning set via JavaScript */
+    z-index: 2;
     display: none;
-
-    /* CSS3 transition - supported in iOS 5.1.1 */
+    opacity: 0;
     -webkit-transition: opacity 1s ease-in-out;
-    -moz-transition: opacity 1s ease-in-out;
-    -o-transition: opacity 1s ease-in-out;
     transition: opacity 1s ease-in-out;
 }
 
