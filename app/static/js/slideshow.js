@@ -198,28 +198,6 @@
     }
 
     /**
-     * Determine if image needs blur background
-     * Returns true if aspect ratio mismatch would cause black bars
-     */
-    function needsBlurBackground(imgWidth, imgHeight) {
-        var viewportWidth = window.innerWidth;
-        var viewportHeight = window.innerHeight;
-
-        var viewportOrientation = getOrientation(viewportWidth, viewportHeight);
-        var imgOrientation = getOrientation(imgWidth, imgHeight);
-
-        // Cross-orientation always needs blur
-        if (viewportOrientation !== imgOrientation) {
-            return true;
-        }
-
-        // Check aspect ratio difference (>10%)
-        var imgAspect = imgWidth / imgHeight;
-        var viewportAspect = viewportWidth / viewportHeight;
-        return Math.abs(imgAspect - viewportAspect) > 0.1;
-    }
-
-    /**
      * Smart image positioning based on device and image orientation
      *
      * Logic:
@@ -347,8 +325,6 @@
      * Display photo with blur background
      */
     function displayPhotoWithBlur(sharpImg, blurImg) {
-        var needsBlur = needsBlurBackground(sharpImg.width, sharpImg.height);
-
         var currentOpacity = currentImgEl.style.opacity || '0';
         var hasCurrentImage = currentOpacity !== '' && currentOpacity !== '0';
 
@@ -358,12 +334,11 @@
             backgroundImgEl.style.opacity = '0';
 
             setTimeout(function() {
-                // Update background
-                if (needsBlur && blurImg) {
+                // Update background - always show blur
+                if (blurImg) {
                     backgroundImgEl.src = blurImg.src;
+                    backgroundImgEl.style.display = 'block';
                     backgroundImgEl.style.opacity = '1';
-                } else {
-                    backgroundImgEl.style.display = 'none';
                 }
 
                 // Update foreground
@@ -375,8 +350,8 @@
                 }, 50);
             }, config.fadeDuration + 50);
         } else {
-            // First load
-            if (needsBlur && blurImg) {
+            // First load - always show blur background
+            if (blurImg) {
                 backgroundImgEl.src = blurImg.src;
                 backgroundImgEl.style.display = 'block';
                 backgroundImgEl.style.opacity = '1';
@@ -406,17 +381,6 @@
             // Reposition foreground image
             if (currentImgEl && currentImgEl.src && currentImgEl.complete) {
                 positionImage(currentImgEl, currentImgEl.naturalWidth, currentImgEl.naturalHeight);
-            }
-
-            // Check if background blur needs to be updated
-            if (backgroundImgEl && backgroundImgEl.style.display !== 'none' && state.currentPhoto) {
-                // Re-evaluate if blur is needed for new orientation
-                var needsBlur = needsBlurBackground(currentImgEl.naturalWidth, currentImgEl.naturalHeight);
-                if (needsBlur) {
-                    backgroundImgEl.style.display = 'block';
-                } else {
-                    backgroundImgEl.style.display = 'none';
-                }
             }
         }, 100);
     }
