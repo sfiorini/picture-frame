@@ -3,27 +3,14 @@ HTTP routes for Picture Frame application.
 
 Provides API endpoints for photo listing, serving, and configuration.
 """
-import os
 import random
-from flask import Blueprint, render_template, jsonify, send_file, current_app
+from pathlib import Path
+from flask import Blueprint, render_template, jsonify, send_file, current_app, request
 
 from .auth import require_api_key
-from .image_service import get_image_service
+from .image_service import get_image_service, init_image_service
 
 bp = Blueprint('main', __name__)
-
-
-def init_image_service(photo_dirs, cache_dir, enable_cache):
-    """
-    Initialize the image service (called from app factory).
-
-    Args:
-        photo_dirs: List of photo directory paths
-        cache_dir: Cache directory path
-        enable_cache: Whether to enable caching
-    """
-    from .image_service import init_image_service as _init
-    _init(photo_dirs, cache_dir, enable_cache)
 
 
 @bp.route('/')
@@ -114,8 +101,6 @@ def get_photo(photo_id):
     Raises:
         404: If photo not found or processing failed
     """
-    from flask import request
-
     image_service = get_image_service()
     photo = image_service.get_photo_by_id(photo_id)
 
@@ -171,7 +156,6 @@ def debug():
     """
     Debug endpoint to see what API key is being received.
     """
-    from flask import request
     api_key_query = request.args.get('api_key')
     api_key_header = request.headers.get('X-API-Key')
     return jsonify({
@@ -180,8 +164,3 @@ def debug():
         'full_url': request.url,
         'query_string': request.query_string.decode()
     })
-
-
-# Import request here to avoid circular dependency
-from flask import request
-from pathlib import Path

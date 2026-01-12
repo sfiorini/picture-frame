@@ -58,6 +58,28 @@
     }
 
     /**
+     * Set CSS transition duration for both image elements.
+     * Uses vendor prefixes for iOS 5.1.1 Safari compatibility.
+     *
+     * @param {number} durationMs - Transition duration in milliseconds
+     */
+    function setTransitionDuration(durationMs) {
+        var transitionStyle = 'opacity ' + (durationMs / 1000) + 's ease-in-out';
+
+        // Set transition for background image
+        backgroundImgEl.style.webkitTransition = transitionStyle;
+        backgroundImgEl.style.mozTransition = transitionStyle;
+        backgroundImgEl.style.oTransition = transitionStyle;
+        backgroundImgEl.style.transition = transitionStyle;
+
+        // Set transition for current image
+        currentImgEl.style.webkitTransition = transitionStyle;
+        currentImgEl.style.mozTransition = transitionStyle;
+        currentImgEl.style.oTransition = transitionStyle;
+        currentImgEl.style.transition = transitionStyle;
+    }
+
+    /**
      * Load configuration from server
      */
     function loadConfig(callback) {
@@ -70,16 +92,8 @@
             config.fadeDuration = data.fadeDuration || 1000;
             config.displayOrder = data.displayOrder || 'random';
 
-            // Update CSS transition duration for both images
-            var transitionStyle = 'opacity ' + (config.fadeDuration / 1000) + 's ease-in-out';
-            backgroundImgEl.style.webkitTransition = transitionStyle;
-            backgroundImgEl.style.mozTransition = transitionStyle;
-            backgroundImgEl.style.oTransition = transitionStyle;
-            backgroundImgEl.style.transition = transitionStyle;
-            currentImgEl.style.webkitTransition = transitionStyle;
-            currentImgEl.style.mozTransition = transitionStyle;
-            currentImgEl.style.oTransition = transitionStyle;
-            currentImgEl.style.transition = transitionStyle;
+            // Update CSS transition duration for both image elements
+            setTransitionDuration(config.fadeDuration);
 
             callback();
         });
@@ -198,12 +212,17 @@
     }
 
     /**
-     * Smart image positioning based on device and image orientation
+     * Smart image positioning based on device and image orientation.
+     * Positions the sharp foreground image to minimize black bars.
      *
      * Logic:
      * - Landscape device + Portrait photo: Fill height, crop sides
      * - Portrait device + Landscape photo: Fill width, crop top/bottom
      * - Matching orientations: Fill based on aspect ratio comparison
+     *
+     * @param {HTMLElement} imgEl - The image element to position
+     * @param {number} imgWidth - Natural width of the image
+     * @param {number} imgHeight - Natural height of the image
      */
     function positionImage(imgEl, imgWidth, imgHeight) {
         var viewportWidth = window.innerWidth;
@@ -257,10 +276,12 @@
     }
 
     /**
-     * Position background image to always cover full viewport (stretched)
-     * The blurred background is simply stretched to fill the entire screen
+     * Position background image to always cover full viewport (stretched).
+     * The blurred background is simply stretched to fill the entire screen.
+     *
+     * @param {HTMLElement} imgEl - The background image element to position
      */
-    function positionBackgroundImage(imgEl, imgWidth, imgHeight) {
+    function positionBackgroundImage(imgEl) {
         var viewportWidth = window.innerWidth;
         var viewportHeight = window.innerHeight;
 
@@ -338,15 +359,16 @@
     }
 
     /**
-     * Display photo with blur background
+     * Display photo with blur background.
+     *
+     * @param {HTMLImageElement} sharpImg - The sharp image element
+     * @param {HTMLImageElement|null} blurImg - The blurred image element, or null if unavailable
      */
     function displayPhotoWithBlur(sharpImg, blurImg) {
         var currentOpacity = currentImgEl.style.opacity || '0';
         var hasCurrentImage = currentOpacity !== '' && currentOpacity !== '0';
 
-        // Use sharp image dimensions for background positioning (blur has same aspect ratio)
-        var bgWidth = blurImg ? blurImg.width : sharpImg.width;
-        var bgHeight = blurImg ? blurImg.height : sharpImg.height;
+        // Use blur if available, otherwise fall back to sharp image for background
         var bgSrc = blurImg ? blurImg.src : sharpImg.src;
 
         if (hasCurrentImage) {
@@ -357,7 +379,7 @@
             setTimeout(function() {
                 // Update background - always show (use blur if available, else sharp)
                 backgroundImgEl.src = bgSrc;
-                positionBackgroundImage(backgroundImgEl, bgWidth, bgHeight);
+                positionBackgroundImage(backgroundImgEl);
                 backgroundImgEl.style.opacity = '1';
 
                 // Update foreground
@@ -371,7 +393,7 @@
         } else {
             // First load - always show background
             backgroundImgEl.src = bgSrc;
-            positionBackgroundImage(backgroundImgEl, bgWidth, bgHeight);
+            positionBackgroundImage(backgroundImgEl);
             backgroundImgEl.style.opacity = '1';
 
             positionImage(currentImgEl, sharpImg.width, sharpImg.height);
@@ -397,7 +419,7 @@
         setTimeout(function() {
             // Reposition background image
             if (backgroundImgEl && backgroundImgEl.src && backgroundImgEl.complete) {
-                positionBackgroundImage(backgroundImgEl, backgroundImgEl.naturalWidth, backgroundImgEl.naturalHeight);
+                positionBackgroundImage(backgroundImgEl);
             }
 
             // Reposition foreground image

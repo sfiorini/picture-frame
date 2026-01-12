@@ -147,7 +147,11 @@ Query parameters:
 - `api_key`: Your API key
 - `blur`: Set to `true` to get a blurred version for background display
 
-The blurred version is downscaled (max 800px) and heavily blurred for use as a background layer.
+The blurred version is:
+- Downscaled to max 800px dimension
+- Heavily blurred using Gaussian blur (radius 30)
+- Saved as JPEG with 70% quality
+- Cached for 24 hours (vs 1 hour for normal photos)
 
 ### `GET /health`
 Health check endpoint for container monitoring
@@ -171,15 +175,16 @@ Once authenticated via the URL parameter, the key is saved to localStorage for s
 
 ### Blurred Background Layer
 
-Every photo displays with a blurred version of itself as a background layer. This creates a more polished visual experience:
+Every photo displays with a blurred version of itself as a background layer. This eliminates black bars and creates a polished visual experience:
 
-- **Full-screen blur**: The background layer always displays as a full-screen cover (`object-fit: cover`)
+- **Server-side blur generation**: Images are downscaled (max 800px) and heavily blurred (Gaussian blur) on the server for performance
+- **Full-screen stretched background**: The blurred image is stretched via JavaScript to exactly fill the viewport (required for iOS 5.1.1 compatibility)
 - **Sharp foreground**: The actual photo is positioned on top using smart positioning logic
-- **Natural fill**: Where the photo doesn't fill the screen (aspect ratio differences), the blurred background shows through
+- **Natural fill**: Where the sharp image doesn't fill the screen, the blurred background shows through
 
 ### Smart Image Positioning
 
-The application automatically positions photos based on device and photo orientation:
+The application automatically positions the sharp foreground photo based on device and photo orientation:
 
 | Device | Photo | Behavior |
 |--------|-------|----------|
