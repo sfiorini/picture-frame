@@ -257,37 +257,18 @@
     }
 
     /**
-     * Position background image to always cover full viewport (like object-fit: cover)
-     * This is needed because object-fit is not supported on Safari iOS 5.1.1
+     * Position background image to always cover full viewport (stretched)
+     * The blurred background is simply stretched to fill the entire screen
      */
     function positionBackgroundImage(imgEl, imgWidth, imgHeight) {
         var viewportWidth = window.innerWidth;
         var viewportHeight = window.innerHeight;
 
-        var imgAspect = imgWidth / imgHeight;
-        var viewportAspect = viewportWidth / viewportHeight;
-
-        var displayWidth, displayHeight, top, left;
-
-        // Always cover the entire viewport (crop the larger dimension)
-        if (imgAspect > viewportAspect) {
-            // Image is wider - fill width, crop top/bottom
-            displayWidth = viewportWidth;
-            displayHeight = imgHeight * (viewportWidth / imgWidth);
-            top = (viewportHeight - displayHeight) / 2;
-            left = 0;
-        } else {
-            // Image is narrower or equal - fill height, crop sides
-            displayHeight = viewportHeight;
-            displayWidth = imgWidth * (viewportHeight / imgHeight);
-            top = 0;
-            left = (viewportWidth - displayWidth) / 2;
-        }
-
-        imgEl.style.width = displayWidth + 'px';
-        imgEl.style.height = displayHeight + 'px';
-        imgEl.style.left = left + 'px';
-        imgEl.style.top = top + 'px';
+        // Stretch to exactly fill viewport (ignore aspect ratio)
+        imgEl.style.width = viewportWidth + 'px';
+        imgEl.style.height = viewportHeight + 'px';
+        imgEl.style.left = '0';
+        imgEl.style.top = '0';
         imgEl.style.display = 'block';
     }
 
