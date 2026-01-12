@@ -329,7 +329,7 @@
                 loadingEl.style.display = 'none';
                 state.isFirstLoad = false;
 
-                if (sharpImg && blurImg) {
+                if (sharpImg) {
                     displayPhotoWithBlur(sharpImg, blurImg);
                 }
             }
@@ -363,18 +363,21 @@
         var currentOpacity = currentImgEl.style.opacity || '0';
         var hasCurrentImage = currentOpacity !== '' && currentOpacity !== '0';
 
+        // Use sharp image dimensions for background positioning (blur has same aspect ratio)
+        var bgWidth = blurImg ? blurImg.width : sharpImg.width;
+        var bgHeight = blurImg ? blurImg.height : sharpImg.height;
+        var bgSrc = blurImg ? blurImg.src : sharpImg.src;
+
         if (hasCurrentImage) {
             // Fade out both layers
             currentImgEl.style.opacity = '0';
             backgroundImgEl.style.opacity = '0';
 
             setTimeout(function() {
-                // Update background - always show blur
-                if (blurImg) {
-                    backgroundImgEl.src = blurImg.src;
-                    positionBackgroundImage(backgroundImgEl, blurImg.width, blurImg.height);
-                    backgroundImgEl.style.opacity = '1';
-                }
+                // Update background - always show (use blur if available, else sharp)
+                backgroundImgEl.src = bgSrc;
+                positionBackgroundImage(backgroundImgEl, bgWidth, bgHeight);
+                backgroundImgEl.style.opacity = '1';
 
                 // Update foreground
                 positionImage(currentImgEl, sharpImg.width, sharpImg.height);
@@ -385,12 +388,10 @@
                 }, 50);
             }, config.fadeDuration + 50);
         } else {
-            // First load - always show blur background
-            if (blurImg) {
-                backgroundImgEl.src = blurImg.src;
-                positionBackgroundImage(backgroundImgEl, blurImg.width, blurImg.height);
-                backgroundImgEl.style.opacity = '1';
-            }
+            // First load - always show background
+            backgroundImgEl.src = bgSrc;
+            positionBackgroundImage(backgroundImgEl, bgWidth, bgHeight);
+            backgroundImgEl.style.opacity = '1';
 
             positionImage(currentImgEl, sharpImg.width, sharpImg.height);
             currentImgEl.src = sharpImg.src;
